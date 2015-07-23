@@ -1,0 +1,17 @@
+{
+  "listener_ip": "127.0.0.1",
+  "listener_port": 8080,
+  "authorized_ips": "",
+  "max_procs": 4,
+  "endpoints":[
+    { "uri_path": "/catchpoint",
+      "plugin_name": "catchpoint"}
+  ],
+  "nsca": {
+    "enabled": true,
+    "server": "my_nsca_host.example.com",
+    "os_command_path": "/usr/sbin/send_nsca",
+    "config_file": "/etc/send_nsca.cfg",
+    "client_host": "MyFakeHost"
+  }
+}
