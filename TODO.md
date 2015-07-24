@@ -9,3 +9,4 @@
  - [ ] Support JSON (and make the structs parser-agnostic)
  - [ ] Check their other Push/pull APIs (for the SDK)
  - [ ] Have the HTTP server really multithreaded, not concurrent (check the channels)
+ - [ ] Add the ability to have the catchpoint URI in the service (sensu only?)
