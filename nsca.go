@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 )
@@ -37,7 +36,7 @@ func sendNscaMessage(state *uint8, service *string, message *string) error {
 		// error as both can be helpful for debug purposes.
 		var out bytes.Buffer
 		cmd.Stdout = &out
-		log.Printf("NSCA command output: %s", out.String())
+		logInfo(fmt.Sprintf("NSCA command output: %s", out.String()))
 	}
 	if err != nil {
 		return err

@@ -4,12 +4,10 @@ package main
 // Catchpoint Alerts API and sends it to nagios.
 //
 // Script parameters:
-//   --verbose
-//   --ip=X.X.X.X
-//   --port=YYYY
-//   --authorized-ips=X.X.X.X,y.y.y.y,Z.Z.Z.Z
-//     Current IP of the Alerts API push servers: 64.79.149.6/32
-//     Reference: https://support.catchpoint.com/hc/en-us/articles/202459889-Alerts-API
+//   --verbose														 : sets the output to verbose
+//   --config=/path/to/my/json/config/file : Path to the configuration file
+//   --dump-requests-dir="/var/log/pushapi": Path to a directory where you dump
+//                                           each request's body
 //
 // Usage example:
 //  - server (this application) side:
@@ -21,8 +19,8 @@ package main
 // Recommendations:
 //   Put this server behind a haproxy + an iptable that filter out all the
 //   source IPs and rejects everything that is not on the correct endpoint
-//   (example: /catchpoint/alerts) use the lb as a proxy and make the script listen on
-//   127.0.0.1 only.
+//   (example: /catchpoint/alerts) use the lb as a proxy and make the script
+//   listens on 127.0.0.1 only.
 //
 
 import (
@@ -32,6 +30,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -41,10 +41,13 @@ import (
 var (
 	// Flag to run or not the deamon in Verbose mode. Defaults to false.
 	verbose = flag.Bool("verbose", false, "Set a verbose output")
-	// Dumps the query to the log output
-	// dumpRequests = flag.Bool("dump-requests", false, "Dumps the requests to the current log output")
 	// Path to the configuration file. Defaults to "./receiver.cfg.json"
 	configFile = flag.String("config", "./receiver.cfg.json", "Path to the config file")
+	// Dumps the http requests content to 1 file each inside the provided
+	// directory. If this string is empty it doesn't dump anything.
+	// This is set as an application argument as it is generally used for debug
+	// purpose only.
+	dumpRequestsDir = flag.String("dump-requests-dir", "", "Dump each http request's body into a new file in the provided folder")
 )
 
 var config = new(Configuration)
@@ -56,27 +59,23 @@ func checkIpFiltering(clientIP *string) bool {
 		client_ip := strings.Split(*clientIP, ":")[0]
 		for _, autorized_ip := range strings.Split(config.AuthIPs, ",") {
 			if client_ip == autorized_ip {
-				if *verbose {
-					log.Printf("Accepted IP: %s", client_ip)
-				}
+				logInfo(fmt.Sprintf("Accepted IP: %s", client_ip))
 				return true
 			}
 		}
-		if *verbose {
-			log.Printf("Refused IP: %s", *clientIP)
-		}
+
+		logInfo(fmt.Sprintf("Refused IP: %s", *clientIP))
 		return false
 	}
 	return true
 }
 
-// verifyRequestContent checks if the content of the request is empty
+// verifyRequestContent checks if the content of the request is empty. If yes,
+// returns an HTTP error 400.
 func verifyRequestContent(w *http.ResponseWriter, req *http.Request) bool {
 
-	if *verbose {
-		log.Printf("Length of the query: %d", req.ContentLength)
-	}
-	// Check for a request body
+	logInfo(fmt.Sprintf("Length of the query: %d", req.ContentLength))
+
 	if req.ContentLength == 0 {
 		http.Error(*w, http.StatusText(400), 400)
 		return false
@@ -87,9 +86,7 @@ func verifyRequestContent(w *http.ResponseWriter, req *http.Request) bool {
 // The handler that will redirect to the correct plugin
 func genericHandler(w http.ResponseWriter, r *http.Request) {
 
-	if *verbose {
-		log.Printf("Receiving a new query from %s on %s", r.RemoteAddr, r.URL.Path)
-	}
+	logInfo(fmt.Sprintf("Receiving a new query from %s on %s", r.RemoteAddr, r.URL.Path))
 
 	// Doing nothing if the request is not from an authorized IP
 	if !checkIpFiltering(&(r.RemoteAddr)) {
@@ -107,6 +104,12 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(*dumpRequestsDir) > 0 {
+		fName := fmt.Sprintf("%d_%d.txt", time.Now().UnixNano(), os.Getpid())
+		err := ioutil.WriteFile(filepath.Join(*dumpRequestsDir, fName), body, 0644)
+		logError(&err)
+	}
+
 	var (
 		rc  uint8
 		svc *string
@@ -119,7 +122,8 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 			// Once you have the right endpoint, you check for the right plugin
 			switch endpoint.PluginName {
 			default:
-				log.Printf("[ERROR] Unsupported plugin name for %s", endpoint.PluginName)
+				errCust := fmt.Errorf("Unsupported plugin name for %s", endpoint.PluginName)
+				logError(&errCust)
 				return
 			case "catchpoint_alerts":
 				plugin := new(alertsAPI.Alert)
@@ -132,9 +136,9 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				if *verbose {
-					log.Printf("Detected criticity = %d\n\tService = %s\n\tMsg = %+v", rc, *svc, *msg)
-				}
+				logInfo(fmt.Sprintf("Detected criticity = %d", rc))
+				logInfo(fmt.Sprintf("Service = %s", *svc))
+				logInfo(fmt.Sprintf("Msg = %+v", *msg))
 			}
 
 			// Sending NSCA messages if enabled
@@ -158,9 +162,7 @@ func main() {
 	// load plugins
 
 	// Loading the configuration
-	if *verbose {
-		log.Printf("Loading config")
-	}
+	logInfo("Loading config")
 	err := config.loadConfig(*configFile)
 	if err != nil {
 		log.Fatal("Unable to laod configuration: %s", err)
@@ -169,13 +171,19 @@ func main() {
 	// Multithreading the http server
 	runtime.GOMAXPROCS(config.Procs)
 
+	if len(config.LogFile) > 0 {
+		logInfo(fmt.Sprintf("Setting the log output to %s", config.LogFile))
+		f, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		logError(&err)
+		defer f.Close()
+		log.SetOutput(f)
+	}
+
 	// Default route. We use it to handle every request. The filtering out is done
 	// in the handler
 	http.HandleFunc("/", genericHandler)
 
-	if *verbose {
-		log.Printf("Starting web server listening on %s:%d", config.IP, config.Port)
-	}
+	logInfo(fmt.Sprintf("Starting web server listening on %s:%d", config.IP, config.Port))
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", config.IP, config.Port),
 		ReadTimeout:    10 * time.Second,
