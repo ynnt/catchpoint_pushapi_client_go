@@ -3,6 +3,7 @@
   "listener_port": 8080,
   "authorized_ips": "",
   "max_procs": 4,
+  "log_file": "logs/test.log",
   "endpoints":[
     { "uri_path": "/catchpoint/alerts",
       "plugin_name": "catchpoint_alerts"}
