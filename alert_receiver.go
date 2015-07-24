@@ -26,13 +26,12 @@ package main
 //
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
-	"github.com/tubemogul/catchpoint_api_sdk_go/tree/master/alertAPI"
+	"github.com/tubemogul/catchpoint_api_sdk_go/alertAPI"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -85,32 +84,6 @@ func verifyRequestContent(w *http.ResponseWriter, req *http.Request) bool {
 	return true
 }
 
-// This function will take care of sending the nsca packets
-// As of today, Go does not currently support the ciphersuite of nsca-ng so I'm
-// using a call to the command line as an ugly workaround
-func sendNscaMessage(state *uint8, service *string, message *string) error {
-	if !config.NSCA.Enabled {
-		return nil
-	}
-
-	cmd := exec.Command(config.NSCA.OsCommand, "-H", config.NSCA.Server, "-c", config.NSCA.ConfigFile)
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\t%s\t%s", *state, *service, *message))
-	err := cmd.Run()
-
-	if *verbose {
-		// In verbose mode, we print the command output before sending back the
-		// error as both can be helpful for debug purposes.
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		log.Printf("NSCA command output: %s", out.String())
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // The handler that will redirect to the correct plugin
 func genericHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -125,6 +98,12 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Doing nothing if the request is empty
 	if !verifyRequestContent(&w, r) {
+		return
+	}
+
+	body, readErr := ioutil.ReadAll(r.Body)
+	handleErrorHttp(&readErr, &w)
+	if readErr != nil {
 		return
 	}
 
@@ -144,9 +123,17 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			case "catchpoint_alerts":
 				plugin := new(alertsAPI.Alert)
-				rc, svc, msg, err = plugin.RequestHandler(&(r.Body))
+				rc, svc, msg, err = plugin.RequestHandler(&body)
+
+				// If there's an error un the handle of the request, logging the error
+				// and exiting.
+				handleErrorHttp(&err, &w)
+				if err != nil {
+					return
+				}
+
 				if *verbose {
-					log.Printf("RC = %d, Svc = %s,  Msg = %s, err = %s", rc, *svc, *msg, err)
+					log.Printf("Detected criticity = %d\n\tService = %s\n\tMsg = %+v", rc, *svc, *msg)
 				}
 			}
 
@@ -156,9 +143,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 				// report of the frequency of the failures
 				for _, failure := range *msg {
 					err := sendNscaMessage(&rc, svc, &failure)
-					if err != nil {
-						log.Printf("[ERROR] %s", err.Error())
-					}
+					handleErrorHttp(&err, &w)
 				}
 			}
 			break // break when you find the matching endpoint
