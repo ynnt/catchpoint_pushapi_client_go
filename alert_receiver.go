@@ -16,12 +16,12 @@ package main
 //    ./alert_receiver --verbose
 //  - On the client side (to test):
 //    CURLFORMAT='\ntime_namelookup:%{time_namelookup},\ntime_connect:%{time_connect},\ntime_appconnect:%{time_appconnect},\ntime_pretransfer:%{time_pretransfer},\ntime_redirect:%{time_redirect},\ntime_starttransfer:%{time_starttransfer},\ntime_total:%{time_total},\nnum_connects:%{num_connects},\nnum_redirects:%{num_redirects}\n'
-//    curl  -X POST -d @/tmp/alert_api.xml http://127.0.0.1:8080/catchpoint --header "Content-Type:application/xml" -w "%${CURLFORMAT}"
+//    curl  -X POST -d @/tmp/alert_api.xml http://127.0.0.1:8080/catchpoint/alerts --header "Content-Type:application/xml" -w "%${CURLFORMAT}"
 //
 // Recommendations:
 //   Put this server behind a haproxy + an iptable that filter out all the
 //   source IPs and rejects everything that is not on the correct endpoint
-//   (here: /catchpoint) use the lb as a proxy and make the script listen on
+//   (example: /catchpoint/alerts) use the lb as a proxy and make the script listen on
 //   127.0.0.1 only.
 //
 
@@ -142,8 +142,8 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 			default:
 				log.Printf("[ERROR] Unsupported plugin name for %s", endpoint.PluginName)
 				return
-			case "catchpoint":
-				plugin := new(catchpoint.Alert)
+			case "catchpoint_alerts":
+				plugin := new(alertsAPI.Alert)
 				rc, svc, msg, err = plugin.RequestHandler(&(r.Body))
 				if *verbose {
 					log.Printf("RC = %d, Svc = %s,  Msg = %s, err = %s", rc, *svc, *msg, err)

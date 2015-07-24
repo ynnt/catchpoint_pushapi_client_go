@@ -36,11 +36,11 @@ type Configuration struct {
 
 // The endpoints define which plugin is used for each supported endpoint
 type Endpoint struct {
-	// The definition of the Path of the endpoint (for example "/catchpoint")
+	// The definition of the Path of the endpoint (for example "/catchpoint/alerts")
 	URIPath string `json:"uri_path"`
 	// The name of the plugin that is supposed to handle this endpoint.
 	// Currently supported values:
-	//   - catchpoint
+	//   - catchpoint_alerts
 	PluginName string `json:"plugin_name"`
 }
 

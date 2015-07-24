@@ -4,8 +4,8 @@
   "authorized_ips": "",
   "max_procs": 4,
   "endpoints":[
-    { "uri_path": "/catchpoint",
-      "plugin_name": "catchpoint"}
+    { "uri_path": "/catchpoint/alerts",
+      "plugin_name": "catchpoint_alerts"}
   ],
   "nsca": {
     "enabled": true,
