@@ -50,7 +50,7 @@ __EOF__
 mkdir -p ${LOGROOT}/catchpoint/
 
 # Yes, an init script would be way better, it's in my TODO! :)
-nohup /root/go/bin/catchpoint_alertapi_client_go \
+nohup ${GOPATH}/bin/catchpoint_alertapi_client_go \
   --verbose \
   --config=/etc/receiver.cfg.json \
   --dump-requests-dir=${LOGROOT}/catchpoint/ &
