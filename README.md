@@ -50,7 +50,7 @@ __EOF__
 mkdir -p ${LOGROOT}/catchpoint/
 
 # Yes, an init script would be way better, it's in my TODO! :)
-nohup ${GOPATH}/bin/catchpoint_pushapi_client_go  --verbose --config=/etc/receiver.cfg.json --dump-requests-dir=${LOGROOT}/catchpoint/ &
+nohup ${GOPATH}/bin/catchpoint_pushapi_client_go  --verbose --config=/etc/catchpoint_pushapi_client.cfg --dump-requests-dir=${LOGROOT}/catchpoint/ &
 ```
 
 ## Contributing
