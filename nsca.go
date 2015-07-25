@@ -28,7 +28,7 @@ func sendNscaMessage(state *uint8, service *string, message *string) error {
 	}
 
 	cmd := exec.Command(config.NSCA.OsCommand, "-H", config.NSCA.Server, "-c", config.NSCA.ConfigFile)
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%s\t%d\t%s\t%s", config.NSCA.ClientHost, *state, *service, *message))
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%s\t%s\t%d\t%s", config.NSCA.ClientHost, *service, *state, *message))
 	err := cmd.Run()
 
 	if *verbose {
