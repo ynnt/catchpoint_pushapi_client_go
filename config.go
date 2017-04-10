@@ -42,8 +42,16 @@ type Configuration struct {
 	// Endpoints list specifying which plugin should handle which endpoint
 	Endpoints []Endpoint `json:"endpoints"`
 
+        // Sender. Listener to give results back
+        Sender []Sender `json:"sender"`
+
 	// Configuration of the nsca plugin
 	NSCA Nsca `json:"nsca"`
+}
+
+// Endpoint from which results being gathered
+type Sender struct {
+    URIPath string `json:"uri_path"`
 }
 
 // The endpoints define which plugin is used for each supported endpoint
@@ -76,6 +84,18 @@ type Nsca struct {
 
 	// The name of the host you want to use when sending the nsca messages
 	ClientHost string `json:"client_host"`
+}
+
+// Configuration for Sensu
+type Sensu struct {
+	// Status of the check
+	Status uint8 `json:"status"`
+
+	// Name of the service
+	Name string `json:"name"`
+
+	// Message
+	Output string
 }
 
 // This function loads the configuration file given in parameter and returns a

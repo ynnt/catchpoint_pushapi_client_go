@@ -24,6 +24,7 @@ package main
 //
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/tubemogul/catchpoint_api_sdk_go/alertAPI"
@@ -34,6 +35,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -51,6 +53,7 @@ var (
 )
 
 var config = new(Configuration)
+var cache []string
 
 // checkIpFiltering sends an empty response if an IP filtering is defined and
 // the IP is out of this filter.
@@ -76,7 +79,7 @@ func verifyRequestContent(w *http.ResponseWriter, req *http.Request) bool {
 
 	logInfo(fmt.Sprintf("Length of the query: %d", req.ContentLength))
 
-	if req.ContentLength == 0 {
+	if req.ContentLength == 0 && req.Method != "GET" {
 		http.Error(*w, http.StatusText(400), 400)
 		return false
 	}
@@ -93,7 +96,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Doing nothing if the request is empty
+	// Doing nothing if the POST request is empty
 	if !verifyRequestContent(&w, r) {
 		return
 	}
@@ -104,7 +107,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(*dumpRequestsDir) > 0 {
+	if len(*dumpRequestsDir) >= 0 {
 		fName := fmt.Sprintf("%d_%d.txt", time.Now().UnixNano(), os.Getpid())
 		err := ioutil.WriteFile(filepath.Join(*dumpRequestsDir, fName), body, 0644)
 		logError(&err)
@@ -117,6 +120,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		err error
 	)
 
+	var mutex = &sync.Mutex{}
 	for _, endpoint := range config.Endpoints {
 		if endpoint.URIPath == r.URL.Path {
 			// Once you have the right endpoint, you check for the right plugin
@@ -150,7 +154,44 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 					handleErrorHttp(&err, &w)
 				}
 			}
+			// Sending check results to channel
+			// And put in into the cache
+			channel := make(chan string)
+			go func() {
+				for _, failure := range *msg {
+					raw := Sensu{
+						Status: rc,
+						Name:   *svc,
+						Output: failure,
+					}
+					res, err := json.Marshal(raw)
+					if err != nil {
+						handleErrorHttp(&err, &w)
+					}
+					channel <- string(res)
+				}
+				close(channel)
+			}()
+			// Preserve cache with Mutex
+			mutex.Lock()
+			for msg := range channel {
+				cache = append(cache, msg)
+			}
+			mutex.Unlock()
+			logInfo(fmt.Sprintf("%d items been written to the cache", len(cache)))
 			break // break when you find the matching endpoint
+		}
+	}
+	for _, sender := range config.Sender {
+		if sender.URIPath == r.URL.Path {
+			mutex.Lock()
+			for _, v := range cache {
+				fmt.Fprintf(w, "%q", v)
+			}
+			logInfo(fmt.Sprintf("%d items been read from the cache", len(cache)))
+			// Discard cache after read
+			cache = nil
+			mutex.Unlock()
 		}
 	}
 }
@@ -181,7 +222,13 @@ func main() {
 
 	// Default route. We use it to handle every request. The filtering out is done
 	// in the handler
+	// Creating channel
 	http.HandleFunc("/", genericHandler)
+
+	// Debug
+	//	val := <-c // read from channel
+	//	test, _ := json.Marshal(val)
+	//	logInfo(fmt.Sprintf(string(test)))
 
 	logInfo(fmt.Sprintf("Starting web server listening on %s:%d", config.IP, config.Port))
 	s := &http.Server{
