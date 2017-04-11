@@ -42,15 +42,15 @@ type Configuration struct {
 	// Endpoints list specifying which plugin should handle which endpoint
 	Endpoints []Endpoint `json:"endpoints"`
 
-        // Sender. Listener to give results back
-        Sender []Sender `json:"sender"`
+        // Emitter. Listener to give results back
+        Emitter []Emitter `json:"emitter"`
 
 	// Configuration of the nsca plugin
 	NSCA Nsca `json:"nsca"`
 }
 
 // Endpoint from which results being gathered
-type Sender struct {
+type Emitter struct {
     URIPath string `json:"uri_path"`
 }
 
