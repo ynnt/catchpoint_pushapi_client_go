@@ -27,15 +27,24 @@ go install github.com/tubemogul/catchpoint_pushapi_client_go
 # Config example
 cat << __EOF__ > /etc/catchpoint_pushapi_client.cfg
 {
-  "listener_ip": "0.0.0.0",
-  "listener_port": 80,
-  "authorized_ips": "64.79.149.6",
+  "listener_ip": "127.0.0.1",
+  "listener_port": 8080,
+  "authorized_ips": "127.0.0.1",
   "max_procs": 4,
-  "log_file": "${LOGROOT}/catchpoint.log",
+  "log_file": "/var/log/catchpoint_pushapi_client_go.log",
   "endpoints":[
     { "uri_path": "/catchpoint/alerts",
       "plugin_name": "catchpoint_alerts"}
   ],
+  "emitter": {
+      "enabled": true,
+      "queue": "Catchpoint",
+      "uri":[
+          { "uri_path": "/catchpoint/health" }
+      ],
+      "template_dir": "/etc/catchpoint_pushapi_client_go/templates/",
+      "template": "report.tmpl"
+  },
   "nsca": {
     "enabled": true,
     "server": "nsca_server.example.com",
@@ -48,6 +57,12 @@ __EOF__
 
 # In this example we'll dump all the incoming body requests
 mkdir -p ${LOGROOT}/catchpoint/
+
+With such configuration this script will send all alerts to NSCA
+and also adds all alerts to the cache.
+
+Emitter will be created on the same port as an alert acceptor, but
+will listen on another URI (from config)
 
 # Yes, an init script would be way better, it's in my TODO! :)
 nohup ${GOPATH}/bin/catchpoint_pushapi_client_go  --verbose --config=/etc/catchpoint_pushapi_client.cfg --dump-requests-dir=${LOGROOT}/catchpoint/ &
