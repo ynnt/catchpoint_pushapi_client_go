@@ -28,6 +28,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/tubemogul/catchpoint_api_sdk_go/alertAPI"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -35,7 +36,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
+	"text/template"
 	"time"
 )
 
@@ -120,7 +121,6 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		err error
 	)
 
-	var mutex = &sync.Mutex{}
 	for _, endpoint := range config.Endpoints {
 		if endpoint.URIPath == r.URL.Path {
 			// Once you have the right endpoint, you check for the right plugin
@@ -154,53 +154,54 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 					handleErrorHttp(&err, &w)
 				}
 			}
-			// Sending check results to channel
-			// And put in into the cache
-			channel := make(chan string)
-			go func() {
-				for _, failure := range *msg {
-					raw := Sensu{
-						Status: rc,
-						Name:   *svc,
-						Output: failure,
-					}
-					res, err := json.Marshal(raw)
-					if err != nil {
-						handleErrorHttp(&err, &w)
-					}
-					channel <- string(res)
-				}
-				close(channel)
-			}()
-			// Preserve cache with Mutex
-			mutex.Lock()
-			for msg := range channel {
-				cache = append(cache, msg)
+			// Pushing Catchpoint results to the cache
+			for _, failure := range *msg {
+				updateCacheEntry("localhost", *svc, failure, uint32(time.Now().Unix()), int16(rc))
 			}
-			mutex.Unlock()
-			logInfo(fmt.Sprintf("%d items been written to the cache", len(cache)))
+			logInfo(fmt.Sprintf("%d items been written to the cache", len(cacheT)))
 			break // break when you find the matching endpoint
 		}
 	}
-	for _, sender := range config.Sender {
-		if sender.URIPath == r.URL.Path {
-			mutex.Lock()
-			for _, v := range cache {
-				fmt.Fprintf(w, "%q", v)
+}
+
+func ToJSONString(v interface{}) string {
+	bytesOutput, _ := json.Marshal(v)
+	return string(bytesOutput)
+}
+
+// Get results from the cache
+func reportsHandler(w http.ResponseWriter, r *http.Request) {
+	tmplName := "report.tmpl"
+	// Temp
+	tmplRoot := "/Users/yurii.rochniak/Repo/catchpoint_bridge/templates/"
+	tmplPath := filepath.Join(tmplRoot, tmplName)
+	w.Header().Set("Content-Type", "application/json")
+	fMaps := template.FuncMap{"tojson": ToJSONString}
+	t := template.Must(template.New(tmplName).Funcs(fMaps).ParseFiles(tmplPath))
+	io.WriteString(w, "[")
+	i := 1
+	for host, svcs := range cacheT {
+		j := 1
+		for svc, chk := range svcs {
+			c := map[string]map[string]interface{}{
+				"check": map[string]interface{}{"host": host, "name": svc, "status": chk.state, "message": chk.output, "timestamp": fmt.Sprint(chk.timestamp), "statusFirstSeen": fmt.Sprint(chk.statusFirstSeen)},
 			}
-			logInfo(fmt.Sprintf("%d items been read from the cache", len(cache)))
-			// Discard cache after read
-			cache = nil
-			mutex.Unlock()
+			t.Execute(w, c)
+			// This part just takes care of adding a coma or not between the elements
+			// to have a correcly-formated json
+			if !(i == len(cacheT) && j == len(svcs)) {
+				io.WriteString(w, ",")
+			}
+			j++
 		}
+		i++
 	}
+	io.WriteString(w, "]\n")
 }
 
 // Main function
 func main() {
 	flag.Parse()
-
-	// load plugins
 
 	// Loading the configuration
 	logInfo("Loading config")
@@ -220,15 +221,10 @@ func main() {
 		log.SetOutput(f)
 	}
 
-	// Default route. We use it to handle every request. The filtering out is done
-	// in the handler
-	// Creating channel
+	// Initializing the cache
+	initCache()
 	http.HandleFunc("/", genericHandler)
-
-	// Debug
-	//	val := <-c // read from channel
-	//	test, _ := json.Marshal(val)
-	//	logInfo(fmt.Sprintf(string(test)))
+	http.HandleFunc("/catchpoint/health", reportsHandler)
 
 	logInfo(fmt.Sprintf("Starting web server listening on %s:%d", config.IP, config.Port))
 	s := &http.Server{
