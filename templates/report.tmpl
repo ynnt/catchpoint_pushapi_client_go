@@ -1,0 +1,13 @@
+  {
+    {{range $key, $value := .custom}}
+      "{{ $key }}": {{ tojson $value }},
+    {{end}}
+    "hostname": "{{.check.host}}",
+    "service": "{{.check.name}}",
+    "currentStatus": {
+      "status": "{{.check.status}}",
+      "message": "{{.check.message}}",
+      "lastStatusAt": "{{.check.timestamp}}",
+      "initialStatusAt": "{{.check.statusFirstSeen}}"
+    }
+  }
