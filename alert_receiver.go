@@ -104,7 +104,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(*dumpRequestsDir) >= 0 {
+	if len(*dumpRequestsDir) > 0 {
 		fName := fmt.Sprintf("%d_%d.txt", time.Now().UnixNano(), os.Getpid())
 		err := ioutil.WriteFile(filepath.Join(*dumpRequestsDir, fName), body, 0644)
 		logError(&err)
@@ -151,10 +151,13 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			// Pushing Catchpoint results to the cache
-			for _, failure := range *msg {
-				updateCacheEntry("localhost", *svc, failure, uint32(time.Now().Unix()), int16(rc))
+			// If emitter is enabled
+			if config.Emitter.Enabled {
+				for _, failure := range *msg {
+					updateCacheEntry(config.Emitter.Queue, *svc, failure, uint32(time.Now().Unix()), int16(rc))
+				}
+				logInfo(fmt.Sprintf("Item has been written to the cache: %d", len(*msg)))
 			}
-			logInfo(fmt.Sprintf("Item has been written to the cache: %d", len(*msg)))
 			break // break when you find the matching endpoint
 		}
 	}
@@ -188,7 +191,7 @@ func main() {
 	http.HandleFunc("/", genericHandler)
 
 	// Start handler for tm-health
-	for _, emitter := range config.Emitter {
+	for _, emitter := range config.Emitter.URI {
 		http.HandleFunc(emitter.URIPath, reportsHandler)
 	}
 

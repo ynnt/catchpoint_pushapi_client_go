@@ -39,25 +39,16 @@ type Configuration struct {
 	// Defaults to empty so console logging.
 	LogFile string `json:"log_file"`
 
-	// Template for check emitter
-	Template string `json:"template"`
-
-	// Path to the templates directory
-	TemplateDir string `json:"template_dir"`
-
 	// Endpoints list specifying which plugin should handle which endpoint
 	Endpoints []Endpoint `json:"endpoints"`
 
 	// Emitter. Listener to give results back
-	Emitter []Emitter `json:"emitter"`
+	// Contains: if emitter is enabled, templateDir,
+	// templateName, listenerURI
+	Emitter Emitter `json:"emitter"`
 
 	// Configuration of the nsca plugin
 	NSCA Nsca `json:"nsca"`
-}
-
-// Endpoint from which results being gathered
-type Emitter struct {
-	URIPath string `json:"uri_path"`
 }
 
 // The endpoints define which plugin is used for each supported endpoint
@@ -92,16 +83,29 @@ type Nsca struct {
 	ClientHost string `json:"client_host"`
 }
 
-// Configuration for Sensu
-type Sensu struct {
-	// Status of the check
-	Status uint8 `json:"status"`
+type Emitter struct {
+	// Wether or not swith alerts emitter for TM Health
+	Enabled bool `json:"enabled"`
 
-	// Name of the service
-	Name string `json:"name"`
+	// Queue for checks.
+	// Actually a placeholder for host value
+	Queue string `json:"queue"`
 
-	// Message
-	Output string
+	// URI for health check emission
+	URI []Listener `json:"uri"`
+
+	// Directory for templates.
+	// Templates are used for TM Health check
+	TemplateDir string `json:"template_dir"`
+
+	// Temaplate name
+	Template string `json:"template"`
+}
+
+type Listener struct {
+	// Path to the emitter endpoint
+	// For example, /catchpoint/health
+	URIPath string `json:"uri_path"`
 }
 
 // This function loads the configuration file given in parameter and returns a

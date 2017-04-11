@@ -46,8 +46,8 @@ func reportsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmplName := config.Template
-	tmplRoot := config.TemplateDir
+	tmplName := config.Emitter.Template
+	tmplRoot := config.Emitter.TemplateDir
 	tmplPath := filepath.Join(tmplRoot, tmplName)
 	w.Header().Set("Content-Type", "application/json")
 	fMaps := template.FuncMap{"tojson": ToJSONString}
