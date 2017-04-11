@@ -58,15 +58,15 @@ __EOF__
 # In this example we'll dump all the incoming body requests
 mkdir -p ${LOGROOT}/catchpoint/
 
+# Yes, an init script would be way better, it's in my TODO! :)
+nohup ${GOPATH}/bin/catchpoint_pushapi_client_go  --verbose --config=/etc/catchpoint_pushapi_client.cfg --dump-requests-dir=${LOGROOT}/catchpoint/ &
+```
+
 With such configuration this script will send all alerts to NSCA
 and also adds all alerts to the cache.
 
 Emitter will be created on the same port as an alert acceptor, but
 will listen on another URI (from config)
-
-# Yes, an init script would be way better, it's in my TODO! :)
-nohup ${GOPATH}/bin/catchpoint_pushapi_client_go  --verbose --config=/etc/catchpoint_pushapi_client.cfg --dump-requests-dir=${LOGROOT}/catchpoint/ &
-```
 
 ## Contributing
 
