@@ -22,9 +22,8 @@ func ToJSONString(v interface{}) string {
 
 // Get results from the cache
 func reportsHandler(w http.ResponseWriter, r *http.Request) {
-	tmplName := "report.tmpl"
-	// Temp
-	tmplRoot := "/Users/yurii.rochniak/Repo/catchpoint_bridge/templates/"
+	tmplName := config.Template
+	tmplRoot := config.TemplateDir
 	tmplPath := filepath.Join(tmplRoot, tmplName)
 	w.Header().Set("Content-Type", "application/json")
 	fMaps := template.FuncMap{"tojson": ToJSONString}

@@ -39,11 +39,17 @@ type Configuration struct {
 	// Defaults to empty so console logging.
 	LogFile string `json:"log_file"`
 
+	// Template for check emitter
+	Template string `json:"template"`
+
+	// Path to the templates directory
+	TemplateDir string `json:"template_dir"`
+
 	// Endpoints list specifying which plugin should handle which endpoint
 	Endpoints []Endpoint `json:"endpoints"`
 
-        // Emitter. Listener to give results back
-        Emitter []Emitter `json:"emitter"`
+	// Emitter. Listener to give results back
+	Emitter []Emitter `json:"emitter"`
 
 	// Configuration of the nsca plugin
 	NSCA Nsca `json:"nsca"`
@@ -51,7 +57,7 @@ type Configuration struct {
 
 // Endpoint from which results being gathered
 type Emitter struct {
-    URIPath string `json:"uri_path"`
+	URIPath string `json:"uri_path"`
 }
 
 // The endpoints define which plugin is used for each supported endpoint
