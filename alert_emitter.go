@@ -20,8 +20,32 @@ func ToJSONString(v interface{}) string {
 	return string(bytesOutput)
 }
 
+// verifyHealthRequest checks if GET method is used for check request.
+// If not, returns an HTTP error 400.
+func verifyHealthRequest(w *http.ResponseWriter, req *http.Request) bool {
+
+	logInfo(fmt.Sprintf("Health request. Method: %q. Length: %d", req.Method, req.ContentLength))
+
+	if req.Method != "GET" {
+		http.Error(*w, http.StatusText(400), 400)
+		return false
+	}
+	return true
+}
+
 // Get results from the cache
 func reportsHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Doing nothing if the request is not from an authorized IP
+	if !checkIpFiltering(&(r.RemoteAddr)) {
+		return
+	}
+
+	// Doing nothing if not a GET request
+	if !verifyHealthRequest(&w, r) {
+		return
+	}
+
 	tmplName := config.Template
 	tmplRoot := config.TemplateDir
 	tmplPath := filepath.Join(tmplRoot, tmplName)

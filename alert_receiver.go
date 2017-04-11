@@ -76,7 +76,7 @@ func verifyRequestContent(w *http.ResponseWriter, req *http.Request) bool {
 
 	logInfo(fmt.Sprintf("Length of the query: %d", req.ContentLength))
 
-	if req.ContentLength == 0 && req.Method != "GET" {
+	if req.ContentLength == 0 {
 		http.Error(*w, http.StatusText(400), 400)
 		return false
 	}
@@ -184,7 +184,10 @@ func main() {
 
 	// Initializing the cache
 	initCache()
+
 	http.HandleFunc("/", genericHandler)
+
+	// Start handler for tm-health
 	for _, emitter := range config.Emitter {
 		http.HandleFunc(emitter.URIPath, reportsHandler)
 	}
