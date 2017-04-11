@@ -27,11 +27,11 @@ go install github.com/tubemogul/catchpoint_pushapi_client_go
 # Config example
 cat << __EOF__ > /etc/catchpoint_pushapi_client.cfg
 {
-  "listener_ip": "127.0.0.1",
-  "listener_port": 8080,
-  "authorized_ips": "127.0.0.1",
+  "listener_ip": "0.0.0.0",
+  "listener_port": 80,
+  "authorized_ips": "64.79.149.6",
   "max_procs": 4,
-  "log_file": "/var/log/catchpoint_pushapi_client_go.log",
+  "log_file": "${LOGROOT}/catchpoint.log",
   "endpoints":[
     { "uri_path": "/catchpoint/alerts",
       "plugin_name": "catchpoint_alerts"}
