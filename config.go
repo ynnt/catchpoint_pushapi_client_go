@@ -142,6 +142,13 @@ func (cfg *Configuration) loadConfig(confFilePath string) error {
 	if len(cfg.NSCA.ConfigFile) == 0 {
 		cfg.NSCA.ConfigFile = "/etc/send_nsca.cfg"
 	}
+	if len(cfg.Emitter.Queue) == 0 {
+		cfg.Emitter.Queue = "Catchpoint"
+	}
+	if len(cfg.Emitter.URI) == 0 {
+		u := Listener{URIPath: "/api/reports"}
+		cfg.Emitter.URI = append(cfg.Emitter.URI, u)
+	}
 
 	return nil
 }
