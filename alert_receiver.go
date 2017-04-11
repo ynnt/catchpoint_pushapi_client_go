@@ -154,7 +154,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 			// If emitter is enabled
 			if config.Emitter.Enabled {
 				for _, failure := range *msg {
-					updateCacheEntry(config.Emitter.Queue, *svc, failure, uint32(time.Now().Unix()), int16(rc))
+					updateCacheEntry(config.Emitter.Queue, strings.Replace(*svc, " ", "_", -1), failure, uint32(time.Now().Unix()), int16(rc))
 				}
 				logInfo(fmt.Sprintf("Item has been written to the cache: %d", len(*msg)))
 			}
