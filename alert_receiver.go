@@ -93,7 +93,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Doing nothing if the request is empty
+	// Doing nothing if the POST request is empty
 	if !verifyRequestContent(&w, r) {
 		return
 	}
@@ -150,6 +150,14 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 					handleErrorHttp(&err, &w)
 				}
 			}
+			// Pushing Catchpoint results to the cache
+			// If emitter is enabled
+			if config.Emitter.Enabled {
+				for _, failure := range *msg {
+					updateCacheEntry(config.Emitter.Queue, strings.Replace(*svc, " ", "_", -1), failure, uint32(time.Now().Unix()), int16(rc))
+				}
+				logInfo(fmt.Sprintf("Item has been written to the cache: %d", len(*msg)))
+			}
 			break // break when you find the matching endpoint
 		}
 	}
@@ -158,8 +166,6 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 // Main function
 func main() {
 	flag.Parse()
-
-	// load plugins
 
 	// Loading the configuration
 	logInfo("Loading config")
@@ -179,9 +185,15 @@ func main() {
 		log.SetOutput(f)
 	}
 
-	// Default route. We use it to handle every request. The filtering out is done
-	// in the handler
+	// Initializing the cache
+	initCache()
+
 	http.HandleFunc("/", genericHandler)
+
+	// Start handler for tm-health
+	for _, emitter := range config.Emitter.URI {
+		http.HandleFunc(emitter.URIPath, reportsHandler)
+	}
 
 	logInfo(fmt.Sprintf("Starting web server listening on %s:%d", config.IP, config.Port))
 	s := &http.Server{

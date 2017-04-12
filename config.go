@@ -42,6 +42,11 @@ type Configuration struct {
 	// Endpoints list specifying which plugin should handle which endpoint
 	Endpoints []Endpoint `json:"endpoints"`
 
+	// Emitter. Listener to give results back
+	// Contains: if emitter is enabled, templateDir,
+	// templateName, listenerURI
+	Emitter Emitter `json:"emitter"`
+
 	// Configuration of the nsca plugin
 	NSCA Nsca `json:"nsca"`
 }
@@ -78,6 +83,31 @@ type Nsca struct {
 	ClientHost string `json:"client_host"`
 }
 
+type Emitter struct {
+	// Wether or not swith alerts emitter for TM Health
+	Enabled bool `json:"enabled"`
+
+	// Queue for checks.
+	// Actually a placeholder for host value
+	Queue string `json:"queue"`
+
+	// URI for health check emission
+	URI []Listener `json:"uri"`
+
+	// Directory for templates.
+	// Templates are used for TM Health check
+	TemplateDir string `json:"template_dir"`
+
+	// Temaplate name
+	Template string `json:"template"`
+}
+
+type Listener struct {
+	// Path to the emitter endpoint
+	// For example, /catchpoint/health
+	URIPath string `json:"uri_path"`
+}
+
 // This function loads the configuration file given in parameter and returns a
 // pointer to a Configuration object
 func (cfg *Configuration) loadConfig(confFilePath string) error {
@@ -111,6 +141,13 @@ func (cfg *Configuration) loadConfig(confFilePath string) error {
 	}
 	if len(cfg.NSCA.ConfigFile) == 0 {
 		cfg.NSCA.ConfigFile = "/etc/send_nsca.cfg"
+	}
+	if len(cfg.Emitter.Queue) == 0 {
+		cfg.Emitter.Queue = "Catchpoint"
+	}
+	if len(cfg.Emitter.URI) == 0 {
+		u := Listener{URIPath: "/api/reports"}
+		cfg.Emitter.URI = append(cfg.Emitter.URI, u)
 	}
 
 	return nil

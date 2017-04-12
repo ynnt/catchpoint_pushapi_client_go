@@ -3,7 +3,7 @@
  - [ ] Add tests
  - [ ] Add Examples
  - [ ] Add Benchmarks
- - [ ] Add Sensu integration
+ - [x] Add Sensu integration
  - [ ] Add init script
  - [ ] Get a generic interface for the plugins and see reflect
  - [ ] Support JSON (and make the structs parser-agnostic)
