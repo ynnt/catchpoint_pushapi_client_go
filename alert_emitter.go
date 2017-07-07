@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"text/template"
 )
 
@@ -58,7 +59,7 @@ func reportsHandler(w http.ResponseWriter, r *http.Request) {
 		j := 1
 		for svc, chk := range svcs {
 			c := map[string]map[string]interface{}{
-				"check": map[string]interface{}{"host": host, "name": svc, "status": chk.state, "message": chk.output, "timestamp": fmt.Sprint(chk.timestamp), "statusFirstSeen": fmt.Sprint(chk.statusFirstSeen)},
+				"check": map[string]interface{}{"host": strconv.Quote(host), "name": strconv.Quote(svc), "status": chk.state, "message": strconv.Quote(chk.output), "timestamp": fmt.Sprint(chk.timestamp), "statusFirstSeen": fmt.Sprint(chk.statusFirstSeen)},
 			}
 			t.Execute(w, c)
 			// This part just takes care of adding a coma or not between the elements
